@@ -1,0 +1,75 @@
+networks:
+  default:
+    driver: bridge
+
+services:
+  nginx-max:
+    container_name: max-nginx
+    image: umputun/nginx-le:v1.4.3
+    ports:
+      - "80:80"
+      - "443:443"
+    expose:
+      - "80"
+      - "443"
+    volumes:
+      - ./nginx/${NGINX_CONF_FILENAME}.conf:/etc/nginx/service.conf
+      - ./nginx/ssl:/etc/nginx/ssl
+      - ./nginx/logs:/var/log/nginx
+      - ./nginx/data:/srv
+    environment:
+      - TZ=GMT
+      - LE_EMAIL=${LE_EMAIL}
+      - LE_FQDN=${LE_FQDN}
+      - LETSENCRYPT=true
+    networks:
+      - default
+    restart: always
+
+  max-bot:
+    container_name: max-bot
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Moscow
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: [ "CMD", "pgrep", "-f", "python.*main.py" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  max-scheduler:
+    container_name: max-scheduler
+    build: .
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Moscow
+      - PYTHONUNBUFFERED=1
+    command: python db/job.py
+    depends_on:
+      - max-bot
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - default
+

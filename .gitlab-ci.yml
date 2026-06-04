@@ -1,0 +1,46 @@
+image: python:3.12
+
+stages:
+  - build
+  - deploy
+
+build server:
+ stage: build
+ image: docker:20.10.17
+ services:
+   - docker:20.10.17-dind
+ variables:
+   DOCKER_DRIVER: "overlay"
+   DOCKER_TLS_CERTDIR: ""
+ before_script:
+     - docker version
+     - "docker info"
+     - "docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY"
+ script:
+   - "docker build -t ${CI_REGISTRY}/${CI_PROJECT_PATH}/server:${CI_COMMIT_REF_NAME} --pull ./server"
+   - "docker push ${CI_REGISTRY}/${CI_PROJECT_PATH}/server:${CI_COMMIT_REF_NAME}"
+ after_script:
+   - "docker logout ${CI_REGISTRY}"
+ only:
+  - tags
+
+
+build nginx:
+ stage: build
+ image: docker:20.10.17
+ services:
+   - docker:20.10.17-dind
+ variables:
+   DOCKER_DRIVER: "overlay"
+   DOCKER_TLS_CERTDIR: ""
+ before_script:
+     - docker version
+     - "docker info"
+     - "docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY"
+ script:
+   - "docker build -t ${CI_REGISTRY}/${CI_PROJECT_PATH}/nginx:${CI_COMMIT_REF_NAME} --pull ./nginx"
+   - "docker push ${CI_REGISTRY}/${CI_PROJECT_PATH}/nginx:${CI_COMMIT_REF_NAME}"
+ after_script:
+   - "docker logout ${CI_REGISTRY}"
+ only:
+  - tags
